@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
@@ -29,7 +30,7 @@ st.markdown("""
         margin-bottom: 2rem;
     }
     .hh-text {
-        color: #1f8e3f;  /* Dark green matching theme */
+        color: #1f8e3f;
     }
     .welcome-text {
         color: #FFFFFF;
@@ -42,29 +43,25 @@ st.markdown("""
         margin-bottom: 1rem;
         box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
     }
-    .stChatMessage.user {
-        background-color: #e0f7fa !important;
-        border-radius: 10px;
-        padding: 0.5rem;
-    }
-    .stChatMessage.assistant {
-        background-color: #fff3e0 !important;
-        border-radius: 10px;
-        padding: 0.5rem;
-    }
-    .login-button {
-        background-color: #1f8e3f;
-        color: white;
-        font-weight: bold;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-    }
-    .login-button:hover {
-        background-color: #176e2d;
-        cursor: pointer;
-    }
     </style>
 """, unsafe_allow_html=True)
+
+# --- Language detection helper ---
+def detect_language(text):
+    """Detect if input is Urdu script, English, or Roman Urdu."""
+    urdu_chars = re.findall(r'[\u0600-\u06FF]', text)
+    english_chars = re.findall(r'[A-Za-z]', text)
+
+    if urdu_chars and not english_chars:
+        return "urdu"
+    elif english_chars:
+        # Check if looks like Roman Urdu words
+        roman_urdu_words = ["kaise", "ap", "mein", "ho", "kya", "acha", "nahi", "haan", "theek"]
+        if any(word in text.lower() for word in roman_urdu_words):
+            return "roman_urdu"
+        else:
+            return "english"
+    return "english"
 
 # --- Helper Functions ---
 def login():
@@ -79,22 +76,32 @@ def login():
 
 def get_gemini_reply(prompt):
     """
-    Run async Gemini client in synchronous Streamlit app
+    Generate reply based on detected language.
     """
+    lang = detect_language(prompt)
+
+    if lang == "urdu":
+        system_prompt = (
+            "آپ ایک ذہین اور دوستانہ چیٹ بوٹ ہیں۔ "
+            "ہمیشہ اردو میں جواب دیں۔ انگریزی یا دیگر زبانوں کا استعمال نہ کریں۔"
+        )
+    elif lang == "roman_urdu":
+        system_prompt = (
+            "You are a friendly assistant. "
+            "User is speaking Roman Urdu (Urdu written in English letters). "
+            "Reply in Roman Urdu naturally, like a human conversation."
+        )
+    else:
+        system_prompt = (
+            "You are a professional and kind English-speaking assistant. "
+            "Always reply in English."
+        )
+
     async def fetch():
         response = await external_client.chat.completions.create(
             model="gemini-2.0-flash",
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are HH.gpt — a smart, friendly assistant. "
-                        "You must only reply in **English or Urdu**. "
-                        "Never use or respond in Hindi under any circumstance. "
-                        "If a user mixes languages, prioritize English and Urdu only. "
-                        "Your tone should be natural, polite, and engaging."
-                    )
-                },
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ]
         )
@@ -144,6 +151,5 @@ elif st.session_state.logged_in:
         with st.spinner("Thinking..."):
             reply = get_gemini_reply(prompt)
             st.session_state.messages.append({"role": "assistant", "content": reply})
-
             with st.chat_message("assistant"):
                 st.markdown(reply)
