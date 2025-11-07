@@ -32,7 +32,7 @@ st.markdown("""
         color: #1f8e3f;  /* Dark green matching theme */
     }
     .welcome-text {
-        color: #FFFFFF;  /* Slightly dark gray for username greeting */
+        color: #FFFFFF;
     }
     .chat-container {
         border: 1px solid #ddd;
@@ -88,10 +88,11 @@ def get_gemini_reply(prompt):
                 {
                     "role": "system",
                     "content": (
-                        "You are a smart, friendly, multilingual assistant. "
-                        "Always reply in the same language the user uses. "
-                        "If the user mixes languages, reply primarily in English but be adaptive. "
-                        "Avoid saying you don't know any language."
+                        "You are HH.gpt — a smart, friendly assistant. "
+                        "You must only reply in **English or Urdu**. "
+                        "Never use or respond in Hindi under any circumstance. "
+                        "If a user mixes languages, prioritize English and Urdu only. "
+                        "Your tone should be natural, polite, and engaging."
                     )
                 },
                 {"role": "user", "content": prompt}
